@@ -1,0 +1,30 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Whisper models (too large for git)
+whispr-rs/models/
+*.bin
+*.gguf
+
+# Build artifacts
+*.exe
+!target/.rustc_info.json
+
+# Environment
+.env
+.env.local
+

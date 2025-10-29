@@ -12,5 +12,8 @@ clap = { version = "4", features = ["derive"] }
 log = "0.4"
 env_logger = "0.11"
 home = "=0.5.5"
+screenshots = "0.8"
+image = { version = "0.24", default-features = false, features = ["png", "jpeg"] }
+regex = "1"
 
  

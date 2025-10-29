@@ -5,6 +5,9 @@ use cpal::SampleFormat;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
+use std::path::PathBuf;
+use std::process::Command;
+use regex::Regex;
 
 #[derive(Debug, Parser)]
 #[command(name = "whispr-rs", version, about = "Record 5s audio and transcribe with Whisper")] 
@@ -20,11 +23,29 @@ struct Args {
     /// Language hint (e.g., en)
     #[arg(short = 'l', long = "language", default_value = "en")]
     language: String,
+
+    /// Run OCR on a screenshot instead of audio transcription
+    #[arg(long = "ocr", default_value_t = false)]
+    ocr: bool,
+
+    /// Path to tesseract executable (optional override)
+    #[arg(long = "tesseract")]
+    tesseract: Option<String>,
 }
 
 fn main() -> Result<()> {
     env_logger::init();
     let args = Args::parse();
+
+    if args.ocr {
+        let text = run_ocr(&args.language, args.tesseract.as_deref())?;
+        if text.trim().is_empty() {
+            println!("(no text detected)");
+        } else {
+            println!("{}", text);
+        }
+        return Ok(());
+    }
 
     println!("Recording {}s of audio...", args.duration_secs);
     let recorded = record_audio(Duration::from_secs(args.duration_secs))
@@ -194,4 +215,82 @@ fn linear_resample(input: &[f32], src_sr: u32, dst_sr: u32) -> Vec<f32> {
         out.push(y);
     }
     out
+}
+
+fn run_ocr(language: &str, tesseract_cli: Option<&str>) -> Result<String> {
+    // Capture primary screen
+    let screens = screenshots::Screen::all()?;
+    let screen = screens
+        .get(0)
+        .ok_or_else(|| anyhow!("no screens detected for screenshot"))?;
+
+    let imgbuf = screen.capture()?; // ImageBuffer<Rgba<u8>, Vec<u8>>
+
+    let out_dir = PathBuf::from("out");
+    std::fs::create_dir_all(&out_dir).ok();
+    let img_path = out_dir.join("screenshot.png");
+
+    image::DynamicImage::ImageRgba8(imgbuf.clone()).save(&img_path)?;
+
+    // Prefer Tesseract CLI to avoid native linking issues
+    let tess_path = find_tesseract(tesseract_cli)?;
+    let output = Command::new(tess_path)
+        .arg(&img_path)
+        .arg("stdout")
+        .arg("-l")
+        .arg(language)
+        .output()
+        .map_err(|e| anyhow!("failed to run tesseract: {e}. Is Tesseract installed and on PATH?"))?;
+
+    if !output.status.success() {
+        return Err(anyhow!(
+            "tesseract error: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    let raw = String::from_utf8_lossy(&output.stdout);
+    // Clean: collapse whitespace
+    let re = Regex::new(r"\s+").unwrap();
+    Ok(re.replace_all(raw.trim(), " ").to_string())
+}
+
+fn find_tesseract(override_path: Option<&str>) -> Result<PathBuf> {
+    if let Some(p) = override_path {
+        let candidate = PathBuf::from(p);
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    if let Ok(env_path) = std::env::var("TESSERACT_PATH") {
+        let candidate = PathBuf::from(env_path);
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    // Try PATH first
+    if let Ok(out) = Command::new("tesseract").arg("--version").output() {
+        if out.status.success() {
+            return Ok(PathBuf::from("tesseract"));
+        }
+    }
+    // Common install locations
+    let candidates = [
+        // Windows
+        r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe",
+        r"C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe",
+        // macOS Homebrew
+        "/opt/homebrew/bin/tesseract",
+        "/usr/local/bin/tesseract",
+        "/usr/bin/tesseract",
+    ];
+    for c in candidates {
+        let pb = PathBuf::from(c);
+        if pb.exists() {
+            return Ok(pb);
+        }
+    }
+    Err(anyhow!(
+        "Tesseract not found. Install it, add to PATH, or set --tesseract or TESSERACT_PATH"
+    ))
 }

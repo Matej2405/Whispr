@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Sample, SampleFormat};
+use cpal::SampleFormat;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext};
+use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 #[derive(Debug, Parser)]
 #[command(name = "whispr-rs", version, about = "Record 5s audio and transcribe with Whisper")] 
@@ -47,8 +47,11 @@ fn main() -> Result<()> {
 
     // Transcribe
     println!("Loading Whisper model: {}", args.model);
-    let ctx = WhisperContext::new(&args.model)
-        .map_err(|e| anyhow!("failed to load model: {e}"))?;
+    let ctx = WhisperContext::new_with_params(
+        &args.model,
+        WhisperContextParameters::default(),
+    )
+    .map_err(|e| anyhow!("failed to load model: {e}"))?;
     let mut state = ctx
         .create_state()
         .map_err(|e| anyhow!("failed to create whisper state: {e}"))?;
@@ -65,9 +68,9 @@ fn main() -> Result<()> {
         .map_err(|e| anyhow!("whisper full failed: {e}"))?;
 
     // Print segments
-    let num_segments = state.full_n_segments();
+    let num_segments = state.full_n_segments()?;
     for i in 0..num_segments {
-        let text = state.full_get_segment_text(i).unwrap_or_default();
+        let text = state.full_get_segment_text(i)?;
         if !text.trim().is_empty() {
             println!("{}", text.trim());
         }
@@ -109,7 +112,7 @@ fn record_audio(duration: Duration) -> Result<RecordedBuffer> {
             move |data: &[i16], _| {
                 let mut buf = buffer_clone.lock().unwrap();
                 for &s in data {
-                    buf.push(i16::to_f32(&s));
+                    buf.push(s as f32 / 32768.0);
                 }
             },
             err_fn,
@@ -120,7 +123,8 @@ fn record_audio(duration: Duration) -> Result<RecordedBuffer> {
             move |data: &[u16], _| {
                 let mut buf = buffer_clone.lock().unwrap();
                 for &s in data {
-                    buf.push(u16::to_f32(&s));
+                    // Map 0..65535 to -1.0..1.0
+                    buf.push((s as f32 - 32768.0) / 32768.0);
                 }
             },
             err_fn,

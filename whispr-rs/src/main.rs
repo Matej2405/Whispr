@@ -279,8 +279,8 @@ fn find_tesseract(override_path: Option<&str>) -> Result<PathBuf> {
     // Common install locations
     let candidates = [
         // Windows
-        r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe",
-        r"C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe",
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
         // macOS Homebrew
         "/opt/homebrew/bin/tesseract",
         "/usr/local/bin/tesseract",

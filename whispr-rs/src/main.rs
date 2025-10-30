@@ -7,7 +7,6 @@ use std::time::{Duration, Instant};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 use std::path::PathBuf;
 use std::process::Command;
-use regex::Regex;
 
 #[derive(Debug, Parser)]
 #[command(name = "whispr-rs", version, about = "Record 5s audio and transcribe with Whisper")] 
@@ -250,9 +249,12 @@ fn run_ocr(language: &str, tesseract_cli: Option<&str>) -> Result<String> {
     }
 
     let raw = String::from_utf8_lossy(&output.stdout);
-    // Clean: collapse whitespace
-    let re = Regex::new(r"\s+").unwrap();
-    Ok(re.replace_all(raw.trim(), " ").to_string())
+    // Clean: collapse whitespace using simple string operations
+    let collapsed = raw
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    Ok(collapsed)
 }
 
 fn find_tesseract(override_path: Option<&str>) -> Result<PathBuf> {

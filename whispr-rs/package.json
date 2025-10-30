@@ -1,0 +1,13 @@
+{
+  "name": "whispr-solana",
+  "version": "1.0.0",
+  "description": "Solana devnet memo logger for Whispr",
+  "type": "module",
+  "scripts": {
+    "test": "node postMemo.js test-memo"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.95.8"
+  }
+}
+

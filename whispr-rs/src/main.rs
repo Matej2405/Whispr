@@ -227,7 +227,7 @@ fn run_ocr(language: &str, tesseract_cli: Option<&str>) -> Result<String> {
     let imgbuf = screen.capture()?; // ImageBuffer<Rgba<u8>, Vec<u8>>
 
     let out_dir = PathBuf::from("out");
-    std::fs::create_dir_all(&out_dir).ok();
+    std::fs::create_dir_all(&out_dir)?;
     let img_path = out_dir.join("screenshot.png");
 
     image::DynamicImage::ImageRgba8(imgbuf.clone()).save(&img_path)?;

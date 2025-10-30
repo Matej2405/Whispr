@@ -260,6 +260,8 @@ fn find_tesseract(override_path: Option<&str>) -> Result<PathBuf> {
         let candidate = PathBuf::from(p);
         if candidate.exists() {
             return Ok(candidate);
+        } else {
+            return Err(anyhow!("Explicitly provided Tesseract path '{}' does not exist", p));
         }
     }
     if let Ok(env_path) = std::env::var("TESSERACT_PATH") {

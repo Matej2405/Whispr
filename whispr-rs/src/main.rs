@@ -230,7 +230,7 @@ fn run_ocr(language: &str, tesseract_cli: Option<&str>) -> Result<String> {
     std::fs::create_dir_all(&out_dir)?;
     let img_path = out_dir.join("screenshot.png");
 
-    image::DynamicImage::ImageRgba8(imgbuf.clone()).save(&img_path)?;
+    image::DynamicImage::ImageRgba8(imgbuf).save(&img_path)?;
 
     // Prefer Tesseract CLI to avoid native linking issues
     let tess_path = find_tesseract(tesseract_cli)?;

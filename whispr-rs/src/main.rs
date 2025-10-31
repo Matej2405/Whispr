@@ -13,6 +13,12 @@ use rdev::{listen, Event, EventType, Key};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+// Load .env file if it exists (for development)
+#[allow(unused_must_use)]
+fn load_env() {
+    dotenv::dotenv();
+}
+
 use audio::{record_audio, downmix_to_mono_f32, linear_resample, transcribe_audio};
 use ocr::capture_and_ocr;
 use ai::{generate_response, get_api_key_from_env_or_arg};
@@ -74,6 +80,9 @@ struct Args {
 }
 
 fn main() -> Result<()> {
+    // Load .env file for API keys (optional, won't crash if missing)
+    load_env();
+    
     env_logger::init();
     let args = Args::parse();
 
